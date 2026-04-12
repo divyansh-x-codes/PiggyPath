@@ -66,9 +66,7 @@ app.use('/ipo', require('./routes/ipo'));
 
 // Trade routes need engine injected
 const tradeRouter = createTradeRouter(engine);
-app.use('/trades', tradeRouter); // Mount trades at /trades
-app.use('/buy', tradeRouter);    // Helper alias for frontend compatibility
-app.use('/sell', tradeRouter);   // Helper alias for frontend compatibility
+app.use('/', tradeRouter); // Mount at root so POST /buy and POST /sell work
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {

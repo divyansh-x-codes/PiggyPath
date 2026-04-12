@@ -1,54 +1,71 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
 import classNames from 'classnames';
 import { useAppContext } from '../context/AppContext';
+import { getStockHistory, subscribeToStock, unsubscribeFromStock, getSocket } from '../api';
 
 const StockDetail = () => {
   const { currentStock, goBack, goScreen, tradeHistory, portfolio, getPrice, confirmTrade } = useAppContext();
-  const [range, setRange] = useState('2y');
+  const [range, setRange] = useState('1m');
   const [tab, setTab] = useState('overview');
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
   const [tradeType, setTradeType] = useState('buy');
   const [tradeQty, setTradeQty] = useState(1);
   const [showConfirm, setShowConfirm] = useState('');
+  const [localHistory, setLocalHistory] = useState([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+
+  // Initial History Fetch
+  useEffect(() => {
+    if (!currentStock) return;
+    
+    let isMounted = true;
+    setIsHistoryLoading(true);
+    
+    getStockHistory(currentStock.id, range).then(data => {
+      if (!isMounted) return;
+      // Convert to simple array of prices
+      const prices = data.map(h => h.price);
+      // If empty, add current price as starting point
+      if (prices.length === 0) prices.push(getPrice(currentStock));
+      setLocalHistory(prices);
+      setIsHistoryLoading(false);
+    }).catch(err => {
+      console.error("Failed to load history:", err);
+      setLocalHistory([getPrice(currentStock)]);
+      setIsHistoryLoading(false);
+    });
+
+    // Real-time socket subscription
+    subscribeToStock(currentStock.id);
+    const socket = getSocket();
+    
+    const onPriceUpdate = (data) => {
+      if (data.stockId === currentStock.id) {
+        setLocalHistory(prev => [...prev.slice(-100), data.price]);
+      }
+    };
+    
+    if (socket) socket.on('price_update', onPriceUpdate);
+
+    return () => {
+      isMounted = false;
+      unsubscribeFromStock(currentStock.id);
+      if (socket) socket.off('price_update', onPriceUpdate);
+    };
+  }, [currentStock, range]);
 
   if (!currentStock) return null;
 
   const price = getPrice(currentStock);
-  const chg = currentStock.change + 
-    (tradeHistory.filter(t => t.stockId === currentStock.id && t.type === 'buy').length * 0.3) - 
-    (tradeHistory.filter(t => t.stockId === currentStock.id && t.type === 'sell').length * 0.2);
-
-  const priceHistory = useMemo(() => {
-    const s = currentStock;
-    const pts = range === '6m' ? 24 : range === '1y' ? 52 : 104;
-    const trades = tradeHistory.filter(t => t.stockId === s.id);
-    let base = s.basePrice * 0.8;
-    const hist = [];
-    for(let i=0; i<pts; i++) {
-      base += base * (Math.random() * 0.04 - 0.018);
-      hist.push(Number(base.toFixed(2)));
-    }
-    let runPrice = hist[hist.length-1];
-    trades.forEach((t, ti) => {
-      const idx = Math.max(pts - trades.length + ti, 0);
-      const delta = t.type === 'buy' ? runPrice * 0.015 : -(runPrice * 0.01);
-      runPrice += delta;
-      for (let j=idx; j<pts; j++) {
-        hist[j] = Number((hist[j] + delta * (j - idx + 1) / pts).toFixed(2));
-      }
-    });
-    hist.push(price);
-    return hist;
-  }, [currentStock, range, tradeHistory, price]);
-
-  const isUp = priceHistory[priceHistory.length-1] >= priceHistory[0];
+  const isUp = localHistory.length > 1 ? price >= localHistory[0] : true;
   const color = isUp ? '#22C55E' : '#EF4444';
+  const chgPercent = localHistory.length > 1 ? (((price - localHistory[0]) / localHistory[0]) * 100).toFixed(2) : '0.00';
 
   const chartData = {
-    labels: priceHistory.map((_, i) => i),
+    labels: localHistory.map((_, i) => i),
     datasets: [{
-      data: priceHistory,
+      data: localHistory,
       borderColor: color,
       borderWidth: 2,
       tension: 0.1,
@@ -62,6 +79,7 @@ const StockDetail = () => {
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: { duration: 400 },
     plugins: {
       legend: { display: false },
       tooltip: { mode: 'index', intersect: false, callbacks: { label: c => `₹ ${c.raw.toLocaleString()}` } }
@@ -125,7 +143,7 @@ const StockDetail = () => {
             ₹ {price.toLocaleString()}
           </p>
           <div style={{ textAlign: 'center', fontSize: 14, fontWeight: 700, color: isUp ? '#22c55e' : '#ef4444', marginBottom: 12 }}>
-            {isUp ? '▲ +' : '▼ '}{Math.abs(chg).toFixed(2)}%
+            {isUp ? '▲ +' : '▼ '}{Math.abs(Number(chgPercent)).toFixed(2)}%
           </div>
 
           <div style={{ position: 'relative', width: '100%', height: 180, marginBottom: 16 }}>

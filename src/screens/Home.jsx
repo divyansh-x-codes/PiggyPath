@@ -242,7 +242,9 @@ const Home = () => {
                   <div style={{ fontSize: 8, fontWeight: 600, letterSpacing: '0.5px', color: '#6b7280' }}>LIVE PRICE</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4 }}>
                     <div style={{ fontSize: 16, fontWeight: 800 }}>₹ {p.toLocaleString()}</div>
-                    <div style={{ fontSize: 10, color: '#22c55e', fontWeight: 700 }}>▲+{(Math.random()*2).toFixed(2)}%</div>
+                    <div style={{ fontSize: 10, color: p >= s.basePrice ? '#22c55e' : '#ef4444', fontWeight: 700 }}>
+                      {p >= s.basePrice ? '▲+' : '▼-'}{Math.abs(((p - s.basePrice) / s.basePrice) * 100).toFixed(2)}%
+                    </div>
                   </div>
                 </div>
               </div>
@@ -271,7 +273,9 @@ const Home = () => {
                   <div style={{ fontSize: 8, fontWeight: 600, letterSpacing: '0.5px', color: '#6b7280' }}>LIVE PRICE</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4 }}>
                     <div style={{ fontSize: 16, fontWeight: 800 }}>₹ {p.toLocaleString()}</div>
-                    <div style={{ fontSize: 10, color: '#22c55e', fontWeight: 700 }}>▲+{(Math.random()*2).toFixed(2)}%</div>
+                    <div style={{ fontSize: 10, color: p >= s.basePrice ? '#22c55e' : '#ef4444', fontWeight: 700 }}>
+                      {p >= s.basePrice ? '▲+' : '▼-'}{Math.abs(((p - s.basePrice) / s.basePrice) * 100).toFixed(2)}%
+                    </div>
                   </div>
                 </div>
               </div>

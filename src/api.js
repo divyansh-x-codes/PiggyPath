@@ -19,6 +19,14 @@ export const initSocket = (userId) => {
 
 export const getSocket = () => socket;
 
+export const subscribeToStock = (stockId) => {
+  if (socket) socket.emit('subscribe_stock', stockId);
+};
+
+export const unsubscribeFromStock = (stockId) => {
+  if (socket) socket.emit('unsubscribe_stock', stockId);
+};
+
 /**
  * Get the current user's Supabase access token for backend auth
  */

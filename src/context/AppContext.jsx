@@ -42,29 +42,29 @@ export const AppProvider = ({ children }) => {
         fetchPosts().catch(console.error);
 
         // Try to sync with backend, but don't block
+        let me = null;
         try {
           await loginWithBackend();
-          const me = await getMe();
-          setUserData(me);
-          setPortfolio(me.holdings || {});
+          me = await getMe();
+          if (me) {
+            setUserData(me);
+            setPortfolio(me.holdings || {});
+            
+            // Initialize Socket
+            if (me.id) {
+              const socket = initSocket(me.id);
+              socket.on('profile_updated', async () => {
+                const updated = await getMe();
+                setUserData(updated);
+                setPortfolio(updated.holdings || {});
+              });
+              socket.on('price_update', (data) => {
+                setMarketPrices(prev => ({ ...prev, [data.stockId]: data.price }));
+              });
+            }
+          }
         } catch (apiErr) {
           console.warn("Backend sync failed, using local/mock data", apiErr);
-        }
-        
-        // Initialize Socket
-        if (me?.id) {
-          const socket = initSocket(me.id);
-          
-          socket.on('profile_updated', async () => {
-            console.log("[Socket] Profile updated event, refreshing data...");
-            const updated = await getMe();
-            setUserData(updated);
-            setPortfolio(updated.holdings || {});
-          });
-
-          socket.on('price_update', (data) => {
-            setMarketPrices(prev => ({ ...prev, [data.stockId]: data.price }));
-          });
         }
         
         // Transition to home if on splash/auth
