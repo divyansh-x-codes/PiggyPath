@@ -12,7 +12,7 @@ datasource db {
 
 model User {
   id          String   @id @default(uuid())
-  supabaseUid String   @unique @map("supabase_uid")
+  firebaseUid String   @unique @map("firebase_uid")
   email       String?  @unique
   name        String
   balance     Float    @default(100000)
@@ -28,7 +28,7 @@ model User {
   comments         Comment[]
   ipoOrders        IpoOrder[]
 
-  @@index([supabaseUid])
+  @@index([firebaseUid])
   @@index([email])
   @@map("profiles")
 }

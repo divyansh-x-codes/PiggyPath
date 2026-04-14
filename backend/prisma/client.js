@@ -30,4 +30,4 @@ const seedStocks = async () => {
   }
 };
 
-module.exports = { prisma, seedStocks };
+module.exports = { prisma, seedStocks, INITIAL_STOCKS };

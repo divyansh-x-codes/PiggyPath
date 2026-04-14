@@ -1,166 +1,147 @@
-const { prisma } = require('../prisma/client');
+const { db } = require('../firebaseAdmin');
+const admin = require('firebase-admin');
 
 /**
- * Trade controller — handles buy/sell requests
- * The matching engine instance is injected at route registration time
+ * Multi-user Real-time Trade Controller
  */
 
-// POST /buy
-const placeBuyOrder = (engine) => async (req, res) => {
+// POST /trade/buy
+const placeBuyOrder = async (req, res) => {
   try {
-    const { stockId, price, quantity } = req.body;
-    const userId = req.user.dbUser.id;
+    const { stockId, quantity } = req.body;
+    const userId = req.user.uid; // From authMiddleware (Firebase UID)
 
-    // Input validation
-    if (!stockId || !price || !quantity) {
-      return res.status(400).json({ error: 'stockId, price, and quantity are required' });
-    }
-    if (price <= 0 || quantity <= 0 || !Number.isInteger(quantity)) {
-      return res.status(400).json({ error: 'price must be > 0 and quantity must be a positive integer' });
+    if (!stockId || !quantity || quantity <= 0) {
+      return res.status(400).json({ error: 'Invalid stockId or quantity' });
     }
 
-    const stock = await prisma.stock.findUnique({ where: { id: stockId } });
-    if (!stock) return res.status(404).json({ error: 'Stock not found' });
+    // 1. Get Live Price from Firestore
+    const stockRef = db.collection('stocks').doc(stockId);
+    const stockSnap = await stockRef.get();
+    if (!stockSnap.exists) return res.status(404).json({ error: 'Stock not found' });
+    
+    const stockData = stockSnap.data();
+    const price = stockData.price;
+    const totalCost = price * quantity;
 
-    const { order, matches } = await engine.buy({ userId, stockId, price, quantity });
+    // 2. Check User Balance
+    const userRef = db.collection('users').doc(userId);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) return res.status(404).json({ error: 'User not found' });
+    
+    const userData = userSnap.data();
+    if ((userData.balance || 0) < totalCost) {
+      return res.status(400).json({ error: 'Insufficient balance' });
+    }
 
-    res.json({
-      success: true,
-      order,
-      matchedTrades: matches.length,
-      message: matches.length > 0
-        ? `Order placed and matched ${matches.length} trade(s)`
-        : 'Order placed and added to order book (waiting for match)',
+    // 3. EXECUTE TRADE (Atomic Transaction)
+    await db.runTransaction(async (t) => {
+      // Deduct Balance
+      t.update(userRef, {
+        balance: admin.firestore.FieldValue.increment(-totalCost)
+      });
+
+      // Update Portfolio
+      const portfolioRef = db.collection('portfolio').doc(`${userId}_${stockId}`);
+      const portSnap = await t.get(portfolioRef);
+      
+      if (portSnap.exists) {
+        const pData = portSnap.data();
+        const newQty = pData.quantity + quantity;
+        const newAvg = ((pData.avgPrice * pData.quantity) + (price * quantity)) / newQty;
+        t.update(portfolioRef, { quantity: newQty, avgPrice: newAvg });
+      } else {
+        t.set(portfolioRef, { userId, stockId, quantity, avgPrice: price });
+      }
+
+      // Record Transaction
+      const transRef = db.collection('transactions').doc();
+      t.set(transRef, {
+        userId, stockId, type: 'BUY', quantity, price, total: totalCost, createdAt: new Date()
+      });
+
+      // GLOBAL PRICE IMPACT (User Request: +1.2%)
+      const newPrice = +(price * 1.012).toFixed(2);
+      t.update(stockRef, { price: newPrice });
     });
+
+    res.json({ success: true, message: 'Buy successful' });
+
   } catch (err) {
-    console.error('[TradeController] buy error:', err.message);
-    res.status(400).json({ error: err.message });
+    console.error('[TradeController] Buy error:', err);
+    res.status(500).json({ error: err.message });
   }
 };
 
-// POST /sell
-const placeSellOrder = (engine) => async (req, res) => {
+// POST /trade/sell
+const placeSellOrder = async (req, res) => {
   try {
-    const { stockId, price, quantity } = req.body;
-    const userId = req.user.dbUser.id;
+    const { stockId, quantity } = req.body;
+    const userId = req.user.uid;
 
-    if (!stockId || !price || !quantity) {
-      return res.status(400).json({ error: 'stockId, price, and quantity are required' });
+    const portfolioRef = db.collection('portfolio').doc(`${userId}_${stockId}`);
+    const portSnap = await portfolioRef.get();
+
+    if (!portSnap.exists || portSnap.data().quantity < quantity) {
+      return res.status(400).json({ error: 'Not enough shares' });
     }
-    if (price <= 0 || quantity <= 0 || !Number.isInteger(quantity)) {
-      return res.status(400).json({ error: 'price must be > 0 and quantity must be a positive integer' });
-    }
 
-    const stock = await prisma.stock.findUnique({ where: { id: stockId } });
-    if (!stock) return res.status(404).json({ error: 'Stock not found' });
+    const stockRef = db.collection('stocks').doc(stockId);
+    const stockSnap = await stockRef.get();
+    const price = stockSnap.data().price;
+    const totalCredit = price * quantity;
 
-    const { order, matches } = await engine.sell({ userId, stockId, price, quantity });
+    await db.runTransaction(async (t) => {
+      // Add Balance
+      const userRef = db.collection('users').doc(userId);
+      t.update(userRef, {
+        balance: admin.firestore.FieldValue.increment(totalCredit)
+      });
 
-    res.json({
-      success: true,
-      order,
-      matchedTrades: matches.length,
-      message: matches.length > 0
-        ? `Order placed and matched ${matches.length} trade(s)`
-        : 'Sell order placed and added to order book (waiting for match)',
+      // Update Portfolio
+      const pData = portSnap.data();
+      const newQty = pData.quantity - quantity;
+      if (newQty === 0) {
+        t.delete(portfolioRef);
+      } else {
+        t.update(portfolioRef, { quantity: newQty });
+      }
+
+      // Record Transaction
+      const transRef = db.collection('transactions').doc();
+      t.set(transRef, {
+        userId, stockId, type: 'SELL', quantity, price, total: totalCredit, createdAt: new Date()
+      });
+
+      // GLOBAL PRICE IMPACT (User Request: -0.9%)
+      const newPrice = +(price * 0.991).toFixed(2);
+      t.update(stockRef, { price: newPrice });
     });
+
+    res.json({ success: true, message: 'Sell successful' });
+
   } catch (err) {
-    console.error('[TradeController] sell error:', err.message);
-    res.status(400).json({ error: err.message });
+    console.error('[TradeController] Sell error:', err);
+    res.status(500).json({ error: err.message });
   }
 };
 
-// GET /orders — user's order history
-const getOrders = async (req, res) => {
-  try {
-    const userId = req.user.dbUser.id;
-    const { status, type, stockId } = req.query;
-
-    const where = { userId };
-    if (status) where.status = status;
-    if (type) where.type = type;
-    if (stockId) where.stockId = stockId;
-
-    const orders = await prisma.order.findMany({
-      where,
-      include: { stock: true },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
-
-    res.json(orders.map((o) => ({
-      id: o.id,
-      type: o.type,
-      status: o.status,
-      price: o.price,
-      quantity: o.quantity,
-      filled: o.filled,
-      remaining: o.quantity - o.filled,
-      stockId: o.stockId,
-      symbol: o.stock.symbol,
-      stockName: o.stock.name,
-      createdAt: o.createdAt,
-    })));
-  } catch (err) {
-    console.error('[TradeController] getOrders error:', err);
-    res.status(500).json({ error: 'Failed to fetch orders' });
-  }
+const getStockById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const snap = await db.collection('stocks').doc(id).get();
+        if (!snap.exists) return res.status(404).json({ error: 'Stock not found' });
+        res.json({ id: snap.id, ...snap.data() });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 };
 
-// GET /transactions — user's executed trades
+const getOrders = async (req, res) => res.json([]); 
 const getTransactions = async (req, res) => {
-  try {
-    const userId = req.user.dbUser.id;
-
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        OR: [{ buyerId: userId }, { sellerId: userId }],
-      },
-      include: { stock: true },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
-
-    res.json(transactions.map((t) => ({
-      id: t.id,
-      role: t.buyerId === userId ? 'buyer' : 'seller',
-      stockId: t.stockId,
-      symbol: t.stock.symbol,
-      stockName: t.stock.name,
-      price: t.price,
-      quantity: t.quantity,
-      total: t.price * t.quantity,
-      createdAt: t.createdAt,
-    })));
-  } catch (err) {
-    console.error('[TradeController] getTransactions error:', err);
-    res.status(500).json({ error: 'Failed to fetch transactions' });
-  }
+    const snap = await db.collection('transactions').where('userId', '==', req.user.uid).orderBy('createdAt', 'desc').get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
 };
-
-// DELETE /orders/:id — cancel an open order
-const cancelOrder = async (req, res) => {
-  try {
-    const userId = req.user.dbUser.id;
-    const { id } = req.params;
-
-    const order = await prisma.order.findUnique({ where: { id } });
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-    if (order.userId !== userId) return res.status(403).json({ error: 'Not your order' });
-    if (order.status === 'COMPLETED' || order.status === 'CANCELLED') {
-      return res.status(400).json({ error: `Cannot cancel a ${order.status} order` });
-    }
-
-    const updated = await prisma.order.update({
-      where: { id },
-      data: { status: 'CANCELLED' },
-    });
-
-    res.json({ success: true, order: updated });
-  } catch (err) {
-    console.error('[TradeController] cancelOrder error:', err);
-    res.status(500).json({ error: 'Failed to cancel order' });
-  }
-};
+const cancelOrder = async (req, res) => res.json({ success: true });
 
 module.exports = { placeBuyOrder, placeSellOrder, getOrders, getTransactions, cancelOrder };

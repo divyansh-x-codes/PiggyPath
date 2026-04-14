@@ -1,9 +1,20 @@
 const { prisma } = require('../prisma/client');
 
+const isSafeMode = () => process.env.DB_OFFLINE === 'true';
+
 // GET /me — return the logged-in user's profile
 const getMe = async (req, res) => {
+  if (isSafeMode()) {
+    return res.json({
+      id: "mock-user-123",
+      name: "Safe Mode Trader",
+      email: "safe-mode@piggypath.com",
+      balance: 500000,
+      holdings: []
+    });
+  }
   try {
-    const user = req.user.dbUser;
+    const user = req.user;
 
     const holdings = await prisma.holding.findMany({
       where: { userId: user.id },
@@ -35,9 +46,9 @@ const getMe = async (req, res) => {
 
 // POST /auth/login — verify token and return user info
 // (token verification is handled by middleware; this just returns the user)
-const supabaseLogin = async (req, res) => {
+const firebaseLogin = async (req, res) => {
   try {
-    const user = req.user.dbUser;
+    const user = req.user;
     res.json({
       success: true,
       user: {
@@ -52,4 +63,4 @@ const supabaseLogin = async (req, res) => {
   }
 };
 
-module.exports = { getMe, supabaseLogin };
+module.exports = { getMe, firebaseLogin };

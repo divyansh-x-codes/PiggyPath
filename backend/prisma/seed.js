@@ -23,10 +23,10 @@ async function main() {
 
   // 2. Create System Bot User
   const systemBot = await prisma.user.upsert({
-    where: { supabaseUid: 'system-bot-uuid' },
+    where: { firebaseUid: 'system-bot-uuid' },
     update: {},
     create: {
-      supabaseUid: 'system-bot-uuid',
+      firebaseUid: 'system-bot-uuid',
       name: 'PiggyPath Official',
       balance: 999999999,
       email: 'bot@piggypath.com',

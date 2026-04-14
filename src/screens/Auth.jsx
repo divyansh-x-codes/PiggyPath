@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { supabase } from '../lib/supabase';
+import { auth, db, provider } from '../lib/firebase';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signInWithRedirect, 
+  getRedirectResult,
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithCredential
+} from 'firebase/auth';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { loginWithBackend } from '../api';
+import { Capacitor } from '@capacitor/core';
 
 const INPUT_STYLE = {
   width: '100%',
@@ -18,12 +30,76 @@ const Auth = () => {
   const [tab, setTab] = useState('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [radio, setRadio] = useState('sms');
   const [isSignup, setIsSignup] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [checked, setChecked] = useState(true);
   const [error, setError] = useState('');
   const { goScreen } = useAppContext();
+
+  // 1. Listen for Auth State Changes (User already logged in)
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log("[Auth] State detected: User logged in", user.email);
+        // We sync and navigate
+        handlePostLogin(user);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 2. Handle Redirect Result (After returning from Google)
+  useEffect(() => {
+    const handleRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          console.log("[Auth] Redirect Result success:", result.user.email);
+          localStorage.setItem("user", JSON.stringify(result.user));
+          await handlePostLogin(result.user);
+        }
+      } catch (err) {
+        if (err.code !== 'auth/web-storage-unsupported') {
+            console.error("[Auth] Redirect Login Error:", err);
+            setError("Redirect login failed: " + err.message);
+        }
+      }
+    };
+    handleRedirect();
+  }, []);
+
+  const handlePostLogin = async (user) => {
+    try {
+      // 1. Create/Update profile in Firestore
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (!userDoc.exists()) {
+          const username = `user_${Math.random().toString(36).substring(2, 8)}`;
+          await setDoc(userDocRef, {
+              uid: user.uid,
+              firebaseUid: user.uid, 
+              email: user.email,
+              username: username,
+              balance: 100000,
+              createdAt: serverTimestamp()
+          });
+          console.log("[Auth] New user document created for:", user.email);
+      }
+
+      // 2. Sync with Backend
+      await loginWithBackend();
+      
+      // 3. Final Navigation
+      goScreen('home', false);
+    } catch (err) {
+      console.error("[Auth] Post Login Sync Error:", err);
+      setError("Failed to sync profile: " + err.message);
+    }
+  };
 
   const onEmailAuth = async () => {
     setError('');
@@ -32,43 +108,33 @@ const Auth = () => {
     setLoading(true);
     try {
       if (isSignup) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1),
-            }
-          }
-        });
-        if (error) throw error;
-        setError('Verification email sent! Please check your inbox.');
+        const { user } = await createUserWithEmailAndPassword(auth, email, password);
+        // onAuthStateChanged will handle navigation
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        goScreen('home', false);
+        await signInWithEmailAndPassword(auth, email, password);
+        // onAuthStateChanged will handle navigation
       }
     } catch (err) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   };
 
-  const onSocialLogin = async (provider) => {
+  const onSocialLogin = async (providerName) => {
+    setError('');
+    setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: window.location.origin + '/home'
-        }
-      });
-      if (error) throw error;
+      if (providerName === 'google') {
+        console.log("[Auth] Starting Google Redirect Login...");
+        await signInWithRedirect(auth, provider);
+      } else {
+        setError(`${providerName} login is not implemented yet.`);
+        setLoading(false);
+      }
     } catch (err) {
+      console.error("[Auth] Social Login Trigger Error:", err);
       setError(err.message);
+      setLoading(false);
     }
   };
 

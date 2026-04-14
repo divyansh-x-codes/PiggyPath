@@ -1,10 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { verifySupabaseToken } = require('../middlewares/supabaseVerify');
+const authMiddleware = require('../middlewares/auth');
 const { applyIpo, getIpoOrders } = require('../controllers/ipoController');
 
-// All IPO routes are protected
-router.use(verifySupabaseToken);
+router.use(authMiddleware);
 
 router.post('/apply', applyIpo);
 router.get('/orders', getIpoOrders);

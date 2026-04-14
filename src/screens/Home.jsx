@@ -2,8 +2,6 @@ import React from 'react';
 import { useAppContext } from '../context/AppContext';
 import { STOCKS } from '../data/mockData';
 import { BottomNav } from '../components/Shared';
-import stocksIcon from '../assets/icons8-stocks-96.png';
-import ipoIcon from '../assets/icons8-stock-share-96.png';
 
 const Home = () => {
   const { 
@@ -11,12 +9,6 @@ const Home = () => {
     posts, fetchPosts, setCurrentStock, getPrice, openStockDetail 
   } = useAppContext();
   const portfolioValue = getPortfolioValue();
-
-  const mockupCards = [
-    { id: 'ms', name: 'Megasoft', sub: 'microsoft.inc', logo: 'ms', price: '100,000', change: '+2.5%', isUp: true },
-    { id: 'aapl1', name: 'Bapplee', sub: 'Apple.inc', logo: 'apple', price: '100,000', change: '-2.5%', isUp: false },
-    { id: 'aapl2', name: 'Bapplee', sub: 'Apple.inc', logo: 'apple', price: '100,000', change: '-2.5%', isUp: false },
-  ];
 
   const renderLogo = (logoType) => {
     if (logoType === 'ms') {
@@ -36,6 +28,7 @@ const Home = () => {
         </div>
       );
     }
+    return <div style={{ width: 34, height: 34, borderRadius: 10, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12 }}>{logoType.substring(0,2).toUpperCase()}</div>;
   };
 
   const renderPortfolioCards = () => {
@@ -59,23 +52,23 @@ const Home = () => {
           const h = portfolio[id];
           const qty = h.quantity || h.qty || 0;
           const value = price * qty;
-          const isUp = price >= stock.basePrice;
-          const change = (((price - stock.basePrice) / stock.basePrice) * 100).toFixed(2);
+          const isUp = price >= (h.avgPrice || stock.basePrice);
+          const change = h.avgPrice ? (((price - h.avgPrice) / h.avgPrice) * 100).toFixed(2) : '0.00';
 
           return (
-            <div key={id} onClick={() => openStockDetail(id)} style={{ minWidth: 160, background: '#6D28D9', borderRadius: 20, border: '2px solid black', padding: '14px', flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer' }}>
+            <div key={id} onClick={() => openStockDetail(id)} style={{ minWidth: 160, background: '#6D28D9', borderRadius: 20, border: '1.5px solid black', padding: '14px', flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer', boxShadow: '0 4px 12px rgba(109, 40, 217, 0.2)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                {renderLogo(stock.logo || 'ms')}
+                {renderLogo(stock.logo || stock.id)}
                 <div style={{ color: 'white', paddingTop: 2 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.1 }}>{stock.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.1 }}>{stock.name}</div>
                   <div style={{ fontSize: 9, opacity: .9, marginTop: 2 }}>{qty} Shares</div>
                 </div>
               </div>
               <div style={{ color: 'white', marginTop: 14 }}>
-                <div style={{ fontSize: 8, fontWeight: 500, letterSpacing: '0.5px' }}>VALUE</div>
+                <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.5px', opacity: 0.8 }}>CURRENT VALUE</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4 }}>
-                  <div style={{ fontSize: 16, fontWeight: 600 }}>₹ {value.toLocaleString()}</div>
-                  <div style={{ fontSize: 10, color: isUp ? '#4ade80' : '#ef4444', fontWeight: 700 }}>{isUp ? '▲' : '▼'}{change}%</div>
+                  <div style={{ fontSize: 16, fontWeight: 800 }}>₹ {value.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                  <div style={{ fontSize: 10, color: Number(change) >= 0 ? '#4ade80' : '#f87171', fontWeight: 800 }}>{Number(change) >= 0 ? '▲' : '▼'}{Math.abs(change)}%</div>
                 </div>
               </div>
             </div>
@@ -90,131 +83,101 @@ const Home = () => {
 
       {/* Top Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', position: 'relative', zIndex: 10, marginTop: 20 }}>
-        <div style={{ width: 42, height: 42, borderRadius: '50%', border: '2px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        <div style={{ width: 42, height: 42, borderRadius: '50%', border: '1.5px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
         </div>
 
-        <div style={{ flex: 1, margin: '0 16px', border: '2px solid black', borderRadius: 50, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8, background: 'white' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <div style={{ flex: 1, margin: '0 12px', border: '1.5px solid black', borderRadius: 50, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, background: 'white' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <span style={{ fontSize: 13, color: '#9ca3af', fontWeight: 500 }}>Search stocks, IPO...</span>
         </div>
 
-        <div style={{ position: 'relative' }}>
-          <div style={{ position: 'absolute', top: -70, right: -40, width: 130, height: 130, background: '#4ade80', borderRadius: '50%', zIndex: -1 }}></div>
-          <div style={{ width: 42, height: 42, borderRadius: '50%', border: '2px solid black', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="black"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" /></svg>
-          </div>
+        <div style={{ width: 42, height: 42, borderRadius: '50%', border: '1.5px solid black', background: '#22C55E', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" /></svg>
         </div>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 100 }}>
+        
+        {/* HERO CARD (Proper Logic) */}
+        <div style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)', margin: 16, borderRadius: 24, padding: 24, color: 'white', position: 'relative', overflow: 'hidden', boxShadow: '0 8px 24px rgba(124, 58, 237, 0.3)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }}></div>
+          <p style={{ fontSize: 13, opacity: 0.8, fontWeight: 600 }}>Hello {userData.name || 'Investor'} 👋</p>
+          <p style={{ fontSize: 11, opacity: 0.7, marginBottom: 20 }}>Welcome to your PiggyPath Dashboard</p>
 
-        {/* Hero Card */}
-        <div style={{ margin: '0 20px', position: 'relative', marginTop: 16 }}>
-          <div style={{ background: 'white', borderRadius: 28, padding: '20px 0', border: '2px solid black', boxShadow: '0 16px 32px rgba(0,0,0,0.06)', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', bottom: -50, left: -60, width: 180, height: 180, background: '#8b5cf6', borderRadius: '50%', zIndex: 0 }}></div>
-
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                <div style={{ display: 'inline-block', position: 'relative' }}>
-                  <h1 style={{ fontFamily: "system-ui, -apple-system, sans-serif", fontSize: 28, fontWeight: 700, margin: 0, color: 'black' }}>
-                    Hello {userData.name}
-                  </h1>
-                  <div style={{ position: 'absolute', bottom: -4, left: -10, right: -10, height: 1.5, background: 'black' }}></div>
-                </div>
-                <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 12, fontWeight: 500 }}>Welcome Back, Let's continue</p>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 10px' }}>
-                  <p style={{ fontSize: 10, color: 'black', marginBottom: 6, fontWeight: 500 }}>Local Account Value</p>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 14, color: 'black' }}>
-                    <span style={{ fontSize: 24, fontWeight: 700 }}>₦</span>
-                    <span style={{ fontSize: 24, fontWeight: 700 }}>{(userData.balance || 0).toLocaleString()}</span>
-                  </div>
-                  <button style={{ border: '1.5px solid black', background: 'white', color: 'black', borderRadius: 50, padding: '6px 18px', fontSize: 11, fontWeight: 700 }}>Add Money</button>
-                </div>
-
-                <div style={{ width: 1.5, background: 'black', opacity: 0.2 }}></div>
-
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 10px' }}>
-                  <p style={{ fontSize: 10, color: 'black', marginBottom: 6, fontWeight: 500 }}>Portfolio Account Value</p>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 14, color: 'black' }}>
-                     <span style={{ fontSize: 24, fontWeight: 700 }}>₦</span>
-                    <span style={{ fontSize: 24, fontWeight: 700 }}>{portfolioValue.toLocaleString()}</span>
-                  </div>
-                  <button style={{ border: '1.5px solid black', background: 'white', color: 'black', borderRadius: 50, padding: '6px 18px', fontSize: 11, fontWeight: 700 }}>View Anaylytics</button>
-                </div>
-              </div>
+          <div style={{ display: 'flex', gap: 32, marginBottom: 20 }}>
+            <div>
+              <p style={{ fontSize: 10, opacity: 0.7, textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.8px', marginBottom: 6 }}>Local Account</p>
+              <h2 style={{ fontFamily: '"Syne", sans-serif', fontWeight: 800, fontSize: 26, margin: 0 }}>₹ {Number(userData.balance || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</h2>
             </div>
+            <div style={{ width: 1, background: 'rgba(255,255,255,0.2)' }}></div>
+            <div>
+              <p style={{ fontSize: 10, opacity: 0.7, textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.8px', marginBottom: 6 }}>Portfolio Value</p>
+              <h2 style={{ fontFamily: '"Syne", sans-serif', fontWeight: 800, fontSize: 26, margin: 0 }}>₹ {Number(getPortfolioValue()).toLocaleString(undefined, { maximumFractionDigits: 0 })}</h2>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 50, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Add Money</button>
+            <button style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', padding: '10px 20px', borderRadius: 50, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Analytics</button>
           </div>
         </div>
 
-        {/* Shortcuts */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '20px 20px 16px' }}>
-          <div onClick={() => goScreen('stocks')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <div style={{ width: 56, height: 56, border: '2px solid black', borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'black' }}>
-              <img src={stocksIcon} alt="Stocks" style={{ width: 32, height: 32 }} />
+        {/* Shortcuts — emojis from piggypath_trading_app.html */}
+        <div style={{ display: 'flex', justifyContent: 'space-around', padding: '0 16px 20px' }}>
+          {[
+            { id: 'stocks',    icon: '📈', label: 'Stocks'    },
+            { id: 'ipo',       icon: '🏦', label: 'IPO'       },
+            { id: 'watchlist', icon: '👁️', label: 'Watchlist' },
+            { id: 'bucket',    icon: '🪣', label: 'Bucket'    }
+          ].map(item => (
+            <div key={item.id} onClick={() => goScreen(item.id)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <div style={{ width: 56, height: 56, border: '1.5px solid var(--border)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, background: 'white' }}>
+                {item.icon}
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'black' }}>{item.label}</span>
             </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'black' }}>Stocks</span>
-          </div>
-          <div onClick={() => goScreen('ipo')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <div style={{ width: 56, height: 56, border: '2px solid black', borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'black' }}>
-              <img src={ipoIcon} alt="IPO" style={{ width: 32, height: 32 }} />
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'black' }}>IPO</span>
-          </div>
-          <div onClick={() => goScreen('watchlist')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <div style={{ width: 56, height: 56, border: '2px solid black', borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white' }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3" fill="black"></circle></svg>
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'black' }}>Watchlist</span>
-          </div>
-          <div onClick={() => goScreen('bucket')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <div style={{ width: 56, height: 56, border: '2px solid black', borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white' }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'black' }}>Bucket</span>
-          </div>
+          ))}
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', marginBottom: 12 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'black' }}>My Portfolio</span>
-          <span style={{ fontSize: 13, fontWeight: 500, color: 'black' }}>View all</span>
+          <span style={{ fontSize: 16, fontWeight: 800, color: 'black', fontFamily: '"Syne", sans-serif' }}>My Portfolio</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#7C3AED' }} onClick={() => goScreen('stocks')}>View all</span>
         </div>
         {renderPortfolioCards()}
 
         {/* News Section */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', marginBottom: 12 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'black' }}>News Feed</span>
-          <span style={{ fontSize: 13, fontWeight: 500, color: 'black' }} onClick={fetchPosts}>Refresh</span>
+          <span style={{ fontSize: 16, fontWeight: 800, color: 'black', fontFamily: '"Syne", sans-serif' }}>Market Pulse</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#7C3AED' }} onClick={fetchPosts}>Refresh</span>
         </div>
 
         {posts.length === 0 ? (
-          <div style={{ margin: '0 20px', padding: 20, textAlign: 'center', background: 'white', borderRadius: 24, border: '1px solid #ddd' }}>
-            No updates in your cluster yet.
+          <div style={{ margin: '0 20px', padding: 24, textAlign: 'center', background: 'white', borderRadius: 24, border: '1px solid #e5e7eb' }}>
+            <p style={{ fontSize: 14, color: '#9ca3af', margin: 0 }}>No updates in your cluster yet.</p>
           </div>
         ) : (
-          posts.map(post => (
+          posts.slice(0, 3).map(post => (
             <div key={post.id} onClick={() => { 
                 const s = STOCKS.find(s => s.id === post.stockId);
                 if (s) setCurrentStock(s);
                 goScreen('article'); 
-              }} style={{ background: 'white', border: '2px solid black', borderRadius: 24, padding: 20, margin: '0 20px 16px 20px', cursor: 'pointer' }}>
-               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                 <div style={{ fontSize: 12, fontWeight: 800 }}>{post.user?.name}</div>
-                 <div style={{ fontSize: 10, color: '#6b7280' }}>{new Date(post.createdAt).toLocaleDateString()}</div>
+              }} style={{ background: 'white', border: '1.5px solid #e5e7eb', borderRadius: 24, padding: 20, margin: '0 20px 12px 20px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                 <div style={{ fontSize: 11, fontWeight: 800, color: '#7C3AED' }}>{post.user?.name}</div>
+                 <div style={{ fontSize: 10, color: '#9ca3af' }}>{new Date(post.createdAt).toLocaleDateString()}</div>
                </div>
-               <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 8px', color: 'black' }}>{post.title}</h3>
-               <p style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.4, margin: '0 0 12px' }}>{post.content.substring(0, 100)}...</p>
+               <h3 style={{ fontSize: 15, fontWeight: 800, margin: '0 0 6px', color: 'black', lineHeight: 1.3 }}>{post.title}</h3>
+               <p style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.4, margin: '0 0 12px' }}>{post.content.substring(0, 85)}...</p>
                
                <div style={{ display: 'flex', gap: 16 }}>
                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                   <span style={{ fontSize: 14 }}>{post.isLiked ? '❤️' : '🤍'}</span>
-                   <span style={{ fontSize: 11, fontWeight: 700 }}>{post.likeCount}</span>
+                   <span style={{ fontSize: 12 }}>{post.isLiked ? '❤️' : '🤍'}</span>
+                   <span style={{ fontSize: 10, fontWeight: 700 }}>{post.likeCount}</span>
                  </div>
                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                   <span style={{ fontSize: 14 }}>💬</span>
-                   <span style={{ fontSize: 11, fontWeight: 700 }}>{post.commentCount}</span>
+                   <span style={{ fontSize: 12 }}>💬</span>
+                   <span style={{ fontSize: 10, fontWeight: 700 }}>{post.commentCount}</span>
                  </div>
                </div>
             </div>
@@ -222,67 +185,33 @@ const Home = () => {
         )}
 
         {/* Trending Section */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', marginBottom: 12 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'black' }}>Trending Stocks</span>
-          <span style={{ fontSize: 13, fontWeight: 500, color: 'black' }}>View all</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', marginTop: 12 }}>
+          <span style={{ fontSize: 16, fontWeight: 800, color: 'black', fontFamily: '"Syne", sans-serif' }}>Trending</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#7C3AED' }} onClick={() => goScreen('stocks')}>View all</span>
         </div>
-        <div className="scroll-row" style={{ padding: '0 20px 20px 20px', gap: 16 }}>
+        <div className="scroll-row" style={{ padding: '0 20px 20px 20px', gap: 12 }}>
           {STOCKS.map(s => {
             const p = getPrice(s);
+            const isUp = p >= s.basePrice;
             return (
-              <div key={s.id} onClick={() => openStockDetail(s.id)} style={{ minWidth: 160, background: 'white', borderRadius: 20, border: '2px solid black', padding: '14px', flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 10, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12 }}>{s.id.substring(0,2).toUpperCase()}</div>
-                  <div style={{ color: 'black', paddingTop: 2 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.1 }}>{s.name}</div>
-                    <div style={{ fontSize: 9, opacity: .7, marginTop: 2 }}>{s.ticker}</div>
+              <div key={s.id} onClick={() => openStockDetail(s.id)} style={{ minWidth: 150, background: 'white', borderRadius: 24, border: '1.5px solid #e5e7eb', padding: '16px', flexShrink: 0, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  {renderLogo(s.logo || s.id)}
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 800 }}>{s.ticker}</div>
+                    <div style={{ fontSize: 10, opacity: 0.7, fontWeight: 600 }}>{s.name.substring(0, 8)}..</div>
                   </div>
                 </div>
-                <div style={{ color: 'black', marginTop: 14 }}>
-                  <div style={{ fontSize: 8, fontWeight: 600, letterSpacing: '0.5px', color: '#6b7280' }}>LIVE PRICE</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4 }}>
-                    <div style={{ fontSize: 16, fontWeight: 800 }}>₹ {p.toLocaleString()}</div>
-                    <div style={{ fontSize: 10, color: p >= s.basePrice ? '#22c55e' : '#ef4444', fontWeight: 700 }}>
-                      {p >= s.basePrice ? '▲+' : '▼-'}{Math.abs(((p - s.basePrice) / s.basePrice) * 100).toFixed(2)}%
-                    </div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800 }}>₹ {p.toLocaleString()}</div>
+                  <div style={{ fontSize: 10, color: isUp ? '#22c55e' : '#ef4444', fontWeight: 800, marginTop: 2 }}>
+                    {isUp ? '▲+' : '▼-'}{Math.abs(((p - s.basePrice) / s.basePrice) * 100).toFixed(2)}%
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
-
-        {/* IT Sector Section */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', marginBottom: 12 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'black' }}>IT Sector</span>
-          <span style={{ fontSize: 13, fontWeight: 500, color: 'black' }}>View all</span>
-        </div>
-        <div className="scroll-row" style={{ padding: '0 20px 20px 20px', gap: 16 }}>
-          {STOCKS.filter(s => s.sector === 'Technology' || s.name.includes('soft')).map(s => {
-            const p = getPrice(s);
-            return (
-              <div key={s.id} onClick={() => openStockDetail(s.id)} style={{ minWidth: 160, background: 'white', borderRadius: 20, border: '2px solid black', padding: '14px', flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 10, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12 }}>{s.id.substring(0,2).toUpperCase()}</div>
-                  <div style={{ color: 'black', paddingTop: 2 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.1 }}>{s.name}</div>
-                    <div style={{ fontSize: 9, opacity: .7, marginTop: 2 }}>{s.ticker}</div>
-                  </div>
-                </div>
-                <div style={{ color: 'black', marginTop: 14 }}>
-                  <div style={{ fontSize: 8, fontWeight: 600, letterSpacing: '0.5px', color: '#6b7280' }}>LIVE PRICE</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4 }}>
-                    <div style={{ fontSize: 16, fontWeight: 800 }}>₹ {p.toLocaleString()}</div>
-                    <div style={{ fontSize: 10, color: p >= s.basePrice ? '#22c55e' : '#ef4444', fontWeight: 700 }}>
-                      {p >= s.basePrice ? '▲+' : '▼-'}{Math.abs(((p - s.basePrice) / s.basePrice) * 100).toFixed(2)}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
       </div>
 
       <BottomNav active="home" />

@@ -1,62 +1,45 @@
-const { admin } = require('../firebase/admin');
+const { auth } = require('../firebaseAdmin');
 const { prisma } = require('../prisma/client');
 
 /**
- * Middleware: Verifies Firebase ID Token from Authorization header
- * Attaches req.user = { firebaseUid, email, phone, name, dbUser }
+ * Production-Ready Auth Middleware (Firebase)
+ * 1. Reads token from Authorization: Bearer <token>
+ * 2. Verifies ID Token using Firebase Admin SDK
+ * 3. Fetches user from DB (Using firebaseUid)
+ * 4. Attaches user to req.user
  */
-const verifyFirebaseToken = async (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Missing or invalid Authorization header. Expected: Bearer <token>' });
+      return res.status(401).json({ error: 'Unauthorized: Missing or invalid token' });
     }
 
-    const idToken = authHeader.split('Bearer ')[1];
+    const token = authHeader.split('Bearer ')[1];
 
-    // Verify token with Firebase Admin
-    let decodedToken;
-    try {
-      decodedToken = await admin.auth().verifyIdToken(idToken);
-    } catch (firebaseErr) {
-      console.error('[Auth] Firebase token verification failed:', firebaseErr.message);
-      return res.status(401).json({ error: 'Invalid or expired Firebase token' });
+    // 2. Verify ID Token
+    const decodedToken = await auth.verifyIdToken(token);
+    const uid = decodedToken.uid;
+
+    // 3. Fetch user from DB
+    const user = await prisma.user.findUnique({
+      where: { firebaseUid: uid }
+    });
+
+    if (!user) {
+      console.warn(`[Auth] User document not found for UID: ${uid}`);
+      // Depending on your flow, you might want to auto-create here, 
+      // but usually the frontend does a /login sync right after Firebase Signup.
+      return res.status(404).json({ error: 'User not registered in database' });
     }
 
-    const { uid, email, phone_number, name, picture } = decodedToken;
-
-    // Find or create user in our DB
-    let dbUser = await prisma.user.findUnique({ where: { firebaseUid: uid } });
-
-    if (!dbUser) {
-      // New user — create record
-      const displayName = name || (email ? email.split('@')[0] : 'Trader');
-      dbUser = await prisma.user.create({
-        data: {
-          firebaseUid: uid,
-          email: email || null,
-          phone: phone_number || null,
-          name: displayName,
-          balance: 100000,
-        },
-      });
-      console.log(`[Auth] New user created: ${dbUser.name} (${dbUser.id})`);
-    }
-
-    // Attach to request
-    req.user = {
-      firebaseUid: uid,
-      email,
-      phone: phone_number,
-      dbUser,
-    };
-
+    // 4. Attach user to req.user
+    req.user = user;
     next();
   } catch (err) {
-    console.error('[Auth] Unexpected error in verifyFirebaseToken:', err);
-    res.status(500).json({ error: 'Internal auth error' });
+    console.error('[Auth] Token verification failed:', err.message);
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
   }
 };
 
-module.exports = { verifyFirebaseToken };
+module.exports = authMiddleware;

@@ -12,7 +12,7 @@ exports.getPosts = async (req, res) => {
         user: { select: { name: true } },
         _count: { select: { likes: true, comments: true } },
         likes: {
-          where: { userId: req.user?.dbUser?.id || '' },
+          where: { userId: req.user?.id || '' },
           select: { id: true }
         }
       },
@@ -35,7 +35,7 @@ exports.getPosts = async (req, res) => {
 // POST /social/like
 exports.toggleLike = async (req, res) => {
   const { postId } = req.body;
-  const userId = req.user.dbUser.id;
+  const userId = req.user.id;
 
   try {
     // Unique constraint on model handles duplicates
@@ -58,7 +58,7 @@ exports.toggleLike = async (req, res) => {
 // POST /social/comment
 exports.addComment = async (req, res) => {
   const { postId, content } = req.body;
-  const userId = req.user.dbUser.id;
+  const userId = req.user.id;
 
   if (!content) return res.status(400).json({ error: 'Comment content is required' });
 

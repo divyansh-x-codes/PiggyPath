@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { getAllStocks, getStock, getStockHistory } = require('../controllers/stockController');
-const { verifyFirebaseToken } = require('../middlewares/auth');
 
 // GET /stocks — public, list all stocks
 router.get('/', getAllStocks);

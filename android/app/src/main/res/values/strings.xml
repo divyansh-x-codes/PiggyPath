@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PiggyPaths</string>
+    <string name="title_activity_main">PiggyPaths</string>
+    <string name="package_name">com.piggypaths.app</string>
+    <string name="custom_url_scheme">com.piggypaths.app</string>
+    <string name="server_client_id">723829599396-004mmvkdpggipshgqdur65dql7evi5fs.apps.googleusercontent.com</string>
+</resources>

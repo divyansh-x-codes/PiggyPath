@@ -1,9 +1,21 @@
 import React from 'react';
 import { useAppContext } from '../context/AppContext';
 import { BottomNav } from '../components/Shared';
+import { STOCKS } from '../data/mockData';
 
 const Profile = () => {
-  const { goScreen } = useAppContext();
+  const { goScreen, userData, portfolio, tradeHistory, getPrice } = useAppContext();
+
+  // Calculate portfolio stats
+  const portfolioEntries = Object.entries(portfolio).filter(([, h]) => (h.quantity || 0) > 0);
+  const totalInvested = portfolioEntries.reduce((sum, [, h]) => sum + (h.quantity || 0) * (h.avgPrice || 0), 0);
+  const totalCurrentValue = portfolioEntries.reduce((sum, [id, h]) => {
+    const stock = STOCKS.find(s => s.id === id);
+    const price = stock ? getPrice(stock) : (h.avgPrice || 0);
+    return sum + price * (h.quantity || 0);
+  }, 0);
+  const totalPnL = totalCurrentValue - totalInvested;
+  const pnlPercent = totalInvested > 0 ? ((totalPnL / totalInvested) * 100).toFixed(2) : '0.00';
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#FAFAFA' }}>
@@ -88,6 +100,84 @@ const Profile = () => {
             </div>
           </div>
         </div>
+
+        {/* ── INVESTMENT SUMMARY ────────────────────────────────────────── */}
+        <div style={{ margin: '16px 20px 0' }}>
+          <div style={{ background: 'white', border: '2px solid black', borderRadius: 24, padding: '20px' }}>
+            <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 16 }}>Investment Summary</div>
+            
+            {/* 4 Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              {[
+                { label: 'Balance', value: `₹ ${Number(userData.balance || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, color: '#7C3AED' },
+                { label: 'Total Invested', value: `₹ ${totalInvested.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, color: 'black' },
+                { label: 'Current Value', value: `₹ ${totalCurrentValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, color: 'black' },
+                { label: 'Overall P&L', value: `${totalPnL >= 0 ? '+' : ''}₹ ${Math.abs(totalPnL).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, color: totalPnL >= 0 ? '#22c55e' : '#ef4444' }
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ background: '#f9fafb', borderRadius: 16, padding: '14px' }}>
+                  <div style={{ fontSize: 10, color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color }}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* P&L % bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 14, background: totalPnL >= 0 ? '#f0fdf4' : '#fef2f2' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: totalPnL >= 0 ? '#16a34a' : '#dc2626' }}>
+                {totalPnL >= 0 ? '▲' : '▼'} {Math.abs(pnlPercent)}% return
+              </span>
+              <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>{portfolioEntries.length} stock(s)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── PER-STOCK HOLDINGS ────────────────────────────────────────── */}
+        {portfolioEntries.length > 0 && (
+          <div style={{ margin: '16px 20px 0' }}>
+            <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 12 }}>My Holdings</div>
+            {portfolioEntries.map(([id, h]) => {
+              const stock = STOCKS.find(s => s.id === id);
+              if (!stock) return null;
+              const currPrice = getPrice(stock);
+              const currVal = currPrice * (h.quantity || 0);
+              const invested = (h.quantity || 0) * (h.avgPrice || 0);
+              const pnl = currVal - invested;
+              const isUp = pnl >= 0;
+              return (
+                <div key={id} onClick={() => goScreen('stock-detail')} style={{ background: 'white', border: '1.5px solid #e5e7eb', borderRadius: 20, padding: '16px', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 12, background: (stock.color || '#7C3AED') + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14, color: stock.color || '#7C3AED' }}>
+                        {(stock.logo || stock.name.substring(0,2)).toString().substring(0, 2)}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: 14 }}>{stock.name}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>{h.quantity} shares · avg ₹{(h.avgPrice || 0).toFixed(0)}</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 800, fontSize: 14 }}>₹ {currVal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: isUp ? '#22c55e' : '#ef4444' }}>
+                        {isUp ? '+' : ''}₹ {pnl.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ height: 4, background: '#f3f4f6', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min(100, Math.abs(pnlPercent))}%`, background: isUp ? '#22c55e' : '#ef4444', borderRadius: 4 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {portfolioEntries.length === 0 && (
+          <div style={{ margin: '16px 20px 0', padding: 24, background: 'white', border: '1.5px dashed #d1d5db', borderRadius: 20, textAlign: 'center' }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>📈</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#374151', marginBottom: 4 }}>No investments yet</div>
+            <div style={{ fontSize: 12, color: '#9ca3af' }}>Buy stocks to see your portfolio here</div>
+          </div>
+        )}
 
         {/* MAY 2026 button */}
         <div style={{ margin: '0 20px', marginTop: 16 }}>

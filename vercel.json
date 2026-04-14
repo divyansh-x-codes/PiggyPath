@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/:match*",
+      "destination": "backend/server.js"
+    },
+    {
+      "source": "/auth/:match*",
+      "destination": "backend/server.js"
+    },
+    {
+      "source": "/me/:match*",
+      "destination": "backend/server.js"
+    },
+    {
+      "source": "/stocks/:match*",
+      "destination": "backend/server.js"
+    },
+    {
+      "source": "/social/:match*",
+      "destination": "backend/server.js"
+    },
+    {
+      "source": "/ipo/:match*",
+      "destination": "backend/server.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ],
+  "builds": [
+    {
+      "src": "backend/server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    }
+  ]
+}

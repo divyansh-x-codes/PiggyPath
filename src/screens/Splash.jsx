@@ -16,6 +16,23 @@ const Splash = () => {
         <span style={{ color: '#6D28D9' }}>.</span>
       </div>
       <p style={{ fontFamily: "'Lora', serif", color: 'var(--muted)', marginTop: 12, fontSize: 16, fontWeight: 600, letterSpacing: '1px' }}>Learn. Invest. Grow.</p>
+      
+      {/* Temporary Seed Button */}
+      <button 
+        onClick={async () => {
+          try {
+            const { seedStocks } = await import('../lib/seed');
+            await seedStocks();
+            alert('Firestore Stocks seeded successfully!');
+          } catch (e) {
+            console.error('[Seed Error]', e);
+            alert('Seeding failed. Check console.');
+          }
+        }}
+        style={{ marginTop: 40, padding: '10px 20px', borderRadius: 50, border: '1px solid black', background: 'white', cursor: 'pointer', fontWeight: 600 }}
+      >
+        Initialize Firestore Stocks
+      </button>
     </div>
   );
 };

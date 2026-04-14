@@ -27,7 +27,7 @@ const getBotUser = async () => {
   if (!bot) {
     bot = await prisma.user.create({
       data: {
-        supabaseUid: 'SYSTEM_BOT_' + Date.now(),
+        firebaseUid: 'SYSTEM_BOT_' + Date.now(),
         email: BOT_EMAIL,
         name: 'Market Bot',
         balance: 999_999_999, // Effectively unlimited
